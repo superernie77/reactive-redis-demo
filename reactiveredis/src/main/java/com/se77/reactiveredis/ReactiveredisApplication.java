@@ -8,6 +8,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.listener.PatternTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
@@ -21,7 +22,7 @@ public class ReactiveredisApplication {
 	RedisMessageListenerContainer container(RedisConnectionFactory connectionFactory,
 			MessageListenerAdapter listenerAdapter) {
 
-		RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+		var container = new RedisMessageListenerContainer();
 		container.setConnectionFactory(connectionFactory);
 		container.addMessageListener(listenerAdapter, new PatternTopic("chat"));
 
@@ -46,8 +47,10 @@ public class ReactiveredisApplication {
 	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ReactiveredisApplication.class);
 
 	@Bean
-	StringRedisTemplate template(RedisConnectionFactory connectionFactory) {
-		return new StringRedisTemplate(connectionFactory);
+	RedisTemplate<String, Object> template(RedisConnectionFactory connectionFactory) {
+		var template = new RedisTemplate<String,Object>();
+		template.setConnectionFactory(connectionFactory);
+		return template;
 	}
 
 	public static void main(String[] args) throws InterruptedException {
