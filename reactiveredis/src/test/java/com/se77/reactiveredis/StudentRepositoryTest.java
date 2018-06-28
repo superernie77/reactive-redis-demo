@@ -18,14 +18,19 @@ class StudentRepositoryTest {
 	StudentRepository studentRepository;
 	
 	@Test
-	void testSaveStudent() {
+	void testSaveLoadStudent() {
 		Student student = new Student();
 		student.setGender(Gender.MALE);
 		student.setGrade(1);
 		student.setName("Ernie");
+		student.setId("test111000");
 	    Student result = studentRepository.save(student);
 	    
 	    assertNotNull(result);
+	    
+	    Student loaded = studentRepository.findById("test111000").get();
+	    
+	    assertTrue(loaded.getName().equals(student.getName()));
 	}
 
 }
