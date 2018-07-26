@@ -1,70 +1,52 @@
 package com.se77.reactiveredis;
 
-import java.util.concurrent.CountDownLatch;
+import javax.annotation.PreDestroy;
 
-import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
+import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
+import org.springframework.data.redis.core.ReactiveRedisOperations;
+import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.listener.PatternTopic;
-import org.springframework.data.redis.listener.RedisMessageListenerContainer;
-import org.springframework.data.redis.listener.adapter.MessageListenerAdapter;
-
+import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.RedisSerializationContext;
+import org.springframework.data.redis.serializer.RedisSerializationContext.RedisSerializationContextBuilder;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 @SpringBootApplication
 public class ReactiveredisApplication {
 
 	@Bean
-	RedisMessageListenerContainer container(RedisConnectionFactory connectionFactory,
-			MessageListenerAdapter listenerAdapter) {
+	public ReactiveRedisOperations<String, Person> redisOperations(ReactiveRedisConnectionFactory factory) {
+		Jackson2JsonRedisSerializer<Person> serializer = new Jackson2JsonRedisSerializer<>(Person.class);
 
-		var container = new RedisMessageListenerContainer();
-		container.setConnectionFactory(connectionFactory);
-		container.addMessageListener(listenerAdapter, new PatternTopic("chat"));
+		RedisSerializationContext.RedisSerializationContextBuilder<String, Person> builder = RedisSerializationContext
+				.newSerializationContext(new StringRedisSerializer());
 
-		return container;
+		RedisSerializationContext<String, Person> context = builder.value(serializer).build();
+
+		return new ReactiveRedisTemplate<>(factory, context);
 	}
 
 	@Bean
-	MessageListenerAdapter listenerAdapter(Receiver receiver) {
-		return new MessageListenerAdapter(receiver, "receiveMessage");
+	public RedisTemplate<Object, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
+		RedisTemplate<Object, Object> redisTemplate = new RedisTemplate<>();
+		redisTemplate.setConnectionFactory(connectionFactory);
+		return redisTemplate;
 	}
 
 	@Bean
-	Receiver receiver(CountDownLatch latch) {
-		return new Receiver(latch);
+	public StringRedisTemplate stringRedisTemplate(RedisConnectionFactory connectionFactory) {
+		return new StringRedisTemplate(connectionFactory);
 	}
 
-	@Bean
-	CountDownLatch latch() {
-		return new CountDownLatch(1);
-	}
-	
-	private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(ReactiveredisApplication.class);
-
-	@Bean
-	RedisTemplate<String, Object> template(RedisConnectionFactory connectionFactory) {
-		var template = new RedisTemplate<String,Object>();
-		template.setConnectionFactory(connectionFactory);
-		return template;
-	}
-
-	public static void main(String[] args) throws InterruptedException {
-
-		ApplicationContext ctx = SpringApplication.run(ReactiveredisApplication.class, args);
-
-		StringRedisTemplate template = ctx.getBean(StringRedisTemplate.class);
-		CountDownLatch latch = ctx.getBean(CountDownLatch.class);
-
-		LOGGER.info("Sending message...");
-		template.convertAndSend("chat", "Hello from Redis!");
-
-		latch.await();
-
-		System.exit(0);
+	public static void main(String[] args) {
+		SpringApplication.run(ReactiveredisApplication.class, args);
 	}
 }
